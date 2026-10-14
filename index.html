@@ -325,8 +325,10 @@ function evaluate(F) {
   const sigma2 = sse / df, fstat = ((sst - sse) / k) / sigma2;
   const nt = yte.length, mTe = sum(yte) / nt, res = yte.map((v, i) => v - yhTe[i]);
   const r2 = 1 - sum(res.map(v => v * v)) / sum(yte.map(v => (v - mTe) ** 2));
+  const se = b.map((_, i) => Math.sqrt(sigma2 * iM[i][i])), t = b.map((v, i) => v / se[i]), tc = tCrit(df);
   return {
-    F, S, b, iM, yhTe, df, sigma2, fstat, fp: fPval(fstat, k, df), trainR2: 1 - sse / sst,
+    F, b, se, t, p: t.map(v => tPval(Math.abs(v), df)), lo: b.map((v, i) => v - tc * se[i]), hi: b.map((v, i) => v + tc * se[i]),
+    vif: vif(F), yhTe, df, fstat, fp: fPval(fstat, k, df),
     rmse: Math.sqrt(sum(res.map(v => v * v)) / nt), r2, mae: sum(res.map(Math.abs)) / nt,
     adj: nt - k - 1 > 0 ? 1 - (1 - r2) * (nt - 1) / (nt - k - 1) : NaN,
   };
@@ -357,7 +359,7 @@ async function load() {
   } catch (e) { $('msg').className = 'err'; $('msg').textContent = '載入失敗: ' + e.message; }
 }
 
-function run() {
+async function run() {
   const t = +$('target').value, skipped = [];
   feats = [];
   D.header.forEach((h, j) => {
@@ -365,7 +367,8 @@ function run() {
     if (D.numeric[j]) return feats.push({ name: h, src: j, f: r => +r[j] });
     const levels = [...new Set(D.rows.map(r => r[j]))].sort();
     if (levels.length > 20 || levels.length < 2) return skipped.push(h); // ID-like / constant text column
-    levels.slice(1) // first level = reference (avoids dummy trap).forEach(l => feats.push({ name: `${h}_${l}`, src: j, level: l, f: r => +(r[j] === l) }));
+    // first level = reference (avoids dummy trap)
+    levels.slice(1).forEach(l => feats.push({ name: `${h}_${l}`, src: j, level: l, f: r => +(r[j] === l) }));
   });
   if (!feats.length) { $('msg').className = 'err'; $('msg').textContent = '沒有可用的特徵欄位'; return; }
 
@@ -383,6 +386,40 @@ function run() {
   Xtr = tr.map(toX); ytr = tr.map(r => +r[t]); Xte = te.map(toX); yte = te.map(r => +r[t]);
   ({ G, c } = gram(Xtr, ytr));
 
+  const p = feats.length;
+  $('msg').className = 'sub'; $('msg').textContent = '模型計算中 Fitting models…';
+  const lists = await analyzeWithPython(t) || analyzeInBrowser();
+  results = {};
+  for (const m of METHODS) {
+    const list = lists[m.id];
+    results[m.id] = { list, best: list.reduce((a, b) => b.rmse < a.rmse ? b : a) };
+  }
+  $('title').textContent = `${P.name === 'Custom Dataset' ? 'Custom' : P.name} Multiple Linear Regression Explorer`;
+  $('msg').innerHTML = `✓ ${n} rows · ${p} candidate features · train ${tr.length} / test ${te.length} · Engine: ` +
+    (lists.python ? '<span class="tag">🐍 Python (Flask + scikit-learn + statsmodels)</span>' : '<span class="tag indigo">JavaScript (in-browser)</span>') +
+    (skipped.length ? ` · 略過文字欄位: ${esc(skipped.join(', '))}` : '') +
+    (p > 15 ? ' · Exhaustive 改用 Forward (特徵 > 15)' : '');
+  state.k = null;
+  render();
+}
+
+// Flask backend (app.py): same origin when served by Flask/Vercel; on GitHub Pages use VERCEL_API if set
+const VERCEL_API = ''; // set after deploying to Vercel, e.g. 'https://your-app.vercel.app/api/analyze'
+const API_URL = location.protocol.startsWith('http') && !location.hostname.endsWith('github.io') ? '/api/analyze' : VERCEL_API;
+async function analyzeWithPython(t) {
+  if (!API_URL) return null;
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(60000),
+      body: JSON.stringify({ url: P.url, target: t, test_idx: teIdx }),
+    });
+    const J = await res.json();
+    // backend must have encoded the exact same features, otherwise fall back
+    if (!res.ok || J.features.join('|') !== feats.map(f => f.name).join('|')) return null;
+    return { ...J.results, python: true };
+  } catch { return null; }
+}
+function analyzeInBrowser() {
   const p = feats.length, { Z, yz } = standardize(Xtr.map(r => r.slice(1)), ytr);
   const prefixes = order => order.map((_, k) => order.slice(0, k + 1));
   const fwd = forwardOrder(p);
@@ -390,18 +427,7 @@ function run() {
     lasso: prefixes(pathOrder(Z, yz, 1)), enet: prefixes(pathOrder(Z, yz, 0.5)),
     forward: prefixes(fwd), rfe: prefixes(rfeOrder(Z, yz)), exhaustive: exhaustiveSubsets(p) || prefixes(fwd),
   };
-  results = {};
-  for (const m of METHODS) {
-    const list = subsets[m.id].map((F, i) => F && ({ k: i + 1, ...evaluate(F) })).filter(r => r && r.b);
-    results[m.id] = { list, best: list.reduce((a, b) => b.rmse < a.rmse ? b : a) };
-  }
-  $('title').textContent = `${P.name === 'Custom Dataset' ? 'Custom' : P.name} Multiple Linear Regression Explorer`;
-  $('msg').className = 'sub';
-  $('msg').textContent = `✓ ${n} rows · ${p} candidate features · train ${tr.length} / test ${te.length}` +
-    (skipped.length ? ` · 略過文字欄位: ${skipped.join(', ')}` : '') +
-    (subsets.exhaustive === null || p > 15 ? ' · Exhaustive 改用 Forward (特徵 > 15)' : '');
-  state.k = null;
-  render();
+  return Object.fromEntries(METHODS.map(m => [m.id, subsets[m.id].map(F => evaluate(F)).filter(Boolean).map(r => ({ k: r.F.length, ...r }))]));
 }
 
 // ---------- rendering ----------
@@ -457,7 +483,7 @@ function render() {
   $('stats').innerHTML = [
     ['Test RMSE', fmt(M.rmse), 'Lower is better', isBest ? '<span class="tag">Optimal Sweet Spot</span>' : ''],
     ['R² Score', M.r2.toFixed(4), `Explains ${(M.r2 * 100).toFixed(2)}% of ${esc(yName)} variance (test)`, `<span class="tag indigo">${(M.r2 * 100).toFixed(1)}% fit</span>`],
-    ['Adjusted R²', isFinite(M.adj) ? M.adj.toFixed(4) : '—', 'Penalizes redundant parameters', ''],
+    ['Adjusted R²', Number.isFinite(M.adj) ? M.adj.toFixed(4) : '—', 'Penalizes redundant parameters', ''],
     ['Mean Absolute Error', fmt(M.mae), 'Average prediction error (test)', ''],
     ['F-Statistic', M.fstat.toFixed(1), M.fp < 0.05 ? 'Model is statistically significant' : 'Not significant at α = 0.05', `<span class="tag ${M.fp < 0.05 ? '' : 'amber'}">p ${M.fp < 1e-4 ? '< 0.0001' : '= ' + M.fp.toFixed(4)}</span>`],
   ].map(([kk, v, d, t]) => `<div class="stat"><div class="k">${kk} ${t}</div><div class="v">${v}</div><div class="d">${d}</div></div>`).join('');
@@ -501,15 +527,13 @@ function render() {
     M.F.map((j, i) => ` ${M.b[i + 1] < 0 ? '−' : '+'} ${nf(M.b[i + 1])} × <b>(${esc(feats[j].name)})</b>`).join('');
 
   // coefficient table
-  const tc = tCrit(M.df), V = vif(M.F);
   $('coefTbl').innerHTML = '<tr><th>Predictor</th><th>Estimate (β)</th><th>Std. Error</th><th>t-Stat</th><th>p-Value</th><th>95% Conf. Int</th><th>VIF</th></tr>' +
     M.b.map((b, i) => {
-      const se = Math.sqrt(M.sigma2 * M.iM[i][i]), t = b / se, p = tPval(Math.abs(t), M.df);
-      const vf = i ? V[i - 1] : null;
+      const p = M.p[i], vf = i ? M.vif[i - 1] : null;
       return `<tr><td><b>${i ? esc(feats[M.F[i - 1]].name) : 'Intercept (β₀)'}</b></td><td class="mono"><b>${b.toFixed(4)}</b></td>
-        <td class="mono">${se.toFixed(4)}</td><td class="mono">${t.toFixed(3)}</td>
+        <td class="mono">${M.se[i].toFixed(4)}</td><td class="mono">${M.t[i].toFixed(3)}</td>
         <td><span class="tag ${p < 0.05 ? '' : 'amber'}">${fmtP(p)}${p < 0.05 ? ' ✓' : ' (n.s.)'}</span></td>
-        <td class="mono">[${(b - tc * se).toFixed(2)}, ${(b + tc * se).toFixed(2)}]</td>
+        <td class="mono">[${M.lo[i].toFixed(2)}, ${M.hi[i].toFixed(2)}]</td>
         <td>${vf == null ? '—' : `<span class="tag ${vf < 5 ? '' : 'amber'}">${vf.toFixed(2)} ${vf < 5 ? '(Safe)' : '(High)'}</span>`}</td></tr>`;
     }).join('');
 
