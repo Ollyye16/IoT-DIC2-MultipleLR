@@ -3,360 +3,272 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Multiple Linear Regression Explorer</title>
-<meta name="description" content="DIC2: Multiple linear regression with 5 feature selection methods (50 Startups / Boston Housing / any CSV).">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M3 3v18h18M7 15l4-4 3 3 6-7' fill='none' stroke='%234f46e5' stroke-width='2.5'/></svg>">
+<title>迴歸實驗室 Regression Lab</title>
+<meta name="description" content="DIC2 多元線性迴歸：50 Startups / Boston Housing / 任意 CSV，5 種特徵選擇方法比較">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><circle cx='6' cy='17' r='2' fill='%232dd4bf'/><circle cx='11' cy='12' r='2' fill='%232dd4bf'/><circle cx='17' cy='8' r='2' fill='%232dd4bf'/><path d='M3 20L21 4' stroke='%23fbbf24' stroke-width='2'/></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
   :root {
-    --bg: #f6f7fb; --card: #fff; --line: #e5e7eb; --text: #1f2937; --muted: #6b7280;
-    --brand: #4f46e5; --brand2: #312e81; --soft: #eef2ff; --green: #10b981; --greenSoft: #d1fae5;
-    --amber: #f59e0b; --amberSoft: #fef3c7; --red: #dc2626;
+    --bg: #0b1120; --panel: #111a2e; --panel2: #16213a; --line: #24304a; --text: #e2e8f0; --muted: #8b9ab3;
+    --accent: #2dd4bf; --accent2: #0f766e; --gold: #fbbf24; --bad: #fb7185; --mono: 'IBM Plex Mono', monospace;
   }
   * { box-sizing: border-box; }
-  body { margin: 0; font-family: Inter, system-ui, sans-serif; background: var(--bg); color: var(--text); font-size: 14px; }
-  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 16px 40px; }
-  header.top { display: flex; align-items: center; gap: 10px; padding: 16px 0; border-bottom: 1px solid var(--line); margin-bottom: 20px; }
-  header.top h1 { font-size: 20px; margin: 0; font-weight: 800; }
-  .badge { background: var(--brand); color: #fff; border-radius: 999px; padding: 2px 8px; font-size: 11px; font-weight: 700; }
-  .hero { background: linear-gradient(120deg, var(--brand2), var(--brand) 60%, #6d28d9); color: #fff; border-radius: 16px; padding: 28px; margin-bottom: 20px; }
-  .hero h2 { margin: 0 0 10px; font-size: 26px; font-weight: 800; }
-  .hero p { margin: 0 0 16px; max-width: 760px; line-height: 1.6; opacity: .92; }
-  .pills { display: flex; flex-wrap: wrap; gap: 8px; }
-  .pill { background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.25); border-radius: 999px; padding: 4px 12px; font-size: 12px; font-weight: 600; }
-  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 20px; margin-bottom: 20px; box-shadow: 0 1px 2px rgba(0,0,0,.03); }
-  .card h3 { margin: 0 0 4px; font-size: 16px; font-weight: 700; }
-  .sub { color: var(--muted); font-size: 12px; margin: 0 0 14px; }
-  .label { font-size: 11px; font-weight: 700; letter-spacing: .06em; color: var(--muted); text-transform: uppercase; margin: 14px 0 8px; }
-  .label:first-child { margin-top: 0; }
-  .row { display: flex; flex-wrap: wrap; gap: 8px; }
-  .grid { display: grid; gap: 16px; }
-  .grid > * { min-width: 0; }
-  #razor { white-space: normal; }
-  .g2 { grid-template-columns: 1fr 1fr; } .g5 { grid-template-columns: repeat(5, 1fr); } .gData { grid-template-columns: 220px 1fr 180px auto; align-items: end; }
-  @media (max-width: 900px) { .g2, .g5, .gData { grid-template-columns: 1fr; } }
-  select, input[type=text], input[type=number] { width: 100%; font: inherit; padding: 9px 12px; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
-  button.chip { font: inherit; font-weight: 600; font-size: 13px; padding: 8px 14px; border-radius: 10px; border: 1px solid var(--line); background: #fff; cursor: pointer; display: inline-flex; gap: 6px; align-items: center; }
-  button.chip small { font-size: 10px; background: var(--soft); color: var(--brand); padding: 1px 6px; border-radius: 6px; }
-  button.chip.on { background: var(--brand2); color: #fff; border-color: var(--brand2); }
-  button.chip.on small { background: rgba(255,255,255,.2); color: #fff; }
-  button.chip.best { background: var(--green); color: #fff; border-color: var(--green); }
-  button.chip.best.on { box-shadow: 0 0 0 3px var(--greenSoft); }
-  button.chip.full { border-color: var(--amber); }
-  button.chip.full.on { background: var(--amber); border-color: var(--amber); }
-  button.primary { font: inherit; font-weight: 700; padding: 10px 20px; border-radius: 10px; border: 0; background: var(--brand); color: #fff; cursor: pointer; }
-  .stat { background: var(--card); border: 1px solid var(--line); border-top: 4px solid var(--green); border-radius: 14px; padding: 16px; }
-  .stat .k { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; display: flex; justify-content: space-between; gap: 6px; }
-  .stat .v { font-size: 26px; font-weight: 800; margin: 8px 0 4px; }
-  .stat .d { font-size: 12px; color: var(--muted); }
-  .tag { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: var(--greenSoft); color: #047857; white-space: nowrap; text-transform: none; }
-  .tag.amber { background: var(--amberSoft); color: #b45309; }
-  .tag.indigo { background: var(--soft); color: var(--brand); }
-  .bar { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; padding: 12px 16px; }
-  .eq { border-left: 4px solid var(--brand); }
-  .eq code { display: block; font-family: 'JetBrains Mono', monospace; font-size: 14px; background: #f9fafb; border: 1px solid var(--line); border-radius: 10px; padding: 14px; overflow-x: auto; white-space: nowrap; }
-  .eq code b { color: var(--brand); }
-  .tbl { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.55 'Noto Sans TC', system-ui, sans-serif; }
+  .app { display: grid; grid-template-columns: 300px 1fr; min-height: 100vh; }
+  @media (max-width: 960px) { .app { grid-template-columns: 1fr; } aside { position: static !important; height: auto !important; } }
+
+  /* sidebar */
+  aside { position: sticky; top: 0; height: 100vh; overflow-y: auto; background: var(--panel); border-right: 1px solid var(--line); padding: 22px 18px; }
+  .brand { display: flex; gap: 10px; align-items: center; margin-bottom: 22px; }
+  .brand b { font-size: 18px; font-weight: 900; letter-spacing: .02em; }
+  .brand small { display: block; color: var(--muted); font-size: 11px; font-family: var(--mono); }
+  .step { font-size: 12px; color: var(--accent); font-weight: 700; margin: 20px 0 8px; display: flex; gap: 8px; align-items: center; }
+  .step i { font-style: normal; width: 20px; height: 20px; border-radius: 50%; border: 1px solid var(--accent); display: grid; place-items: center; font-size: 11px; }
+  select, input[type=text], input[type=number] { width: 100%; font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; }
+  select:focus, input:focus { outline: 2px solid var(--accent2); }
+  .stack > * + * { margin-top: 8px; }
+  button.go { width: 100%; font: inherit; font-weight: 700; color: #042f2e; background: var(--accent); border: 0; border-radius: 6px; padding: 9px; cursor: pointer; }
+  .opt { display: grid; grid-template-columns: 18px 1fr auto; gap: 2px 8px; align-items: center; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; cursor: pointer; margin-bottom: 6px; }
+  .opt:hover { border-color: var(--accent2); }
+  .opt.on { border-color: var(--accent); background: rgba(45, 212, 191, .08); }
+  .opt input { accent-color: var(--accent); margin: 0; }
+  .opt span { font-weight: 700; }
+  .opt em { grid-column: 2; font-style: normal; font-size: 11px; color: var(--muted); }
+  .opt b { grid-row: 1 / 3; grid-column: 3; font: 600 12px var(--mono); color: var(--muted); text-align: right; }
+  .opt.top b { color: var(--gold); }
+  .kbox { display: flex; align-items: baseline; justify-content: space-between; }
+  .kbox big { font: 600 30px var(--mono); color: var(--accent); }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  .ticks { display: flex; justify-content: space-between; font: 11px var(--mono); color: var(--muted); }
+  .link { background: none; border: 1px dashed var(--gold); color: var(--gold); font: inherit; font-size: 12px; border-radius: 6px; padding: 4px 8px; cursor: pointer; margin-top: 8px; }
+  .note { font-size: 12px; color: var(--muted); margin-top: 6px; }
+  .err { color: var(--bad); }
+
+  /* main */
+  main { padding: 24px 28px 48px; min-width: 0; }
+  .head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 16px; align-items: end; border-bottom: 1px solid var(--line); padding-bottom: 14px; }
+  .head h1 { margin: 0; font-size: 24px; font-weight: 900; }
+  .head h1 span { color: var(--accent); }
+  .engine { font: 12px var(--mono); padding: 3px 10px; border-radius: 4px; border: 1px solid var(--line); color: var(--muted); }
+  .engine.py { color: var(--gold); border-color: var(--gold); }
+  .kpis { display: grid; grid-template-columns: repeat(6, 1fr); border: 1px solid var(--line); border-radius: 8px; margin: 18px 0; background: var(--panel); }
+  .kpis div { padding: 12px 14px; border-left: 1px solid var(--line); }
+  .kpis div:first-child { border-left: 0; }
+  .kpis small { color: var(--muted); font-size: 12px; }
+  .kpis strong { display: block; font: 600 20px var(--mono); margin-top: 2px; white-space: nowrap; }
+  @media (max-width: 1200px) { .kpis { grid-template-columns: repeat(3, 1fr); } .kpis div:nth-child(4) { border-left: 0; } .kpis div:nth-child(n+4) { border-top: 1px solid var(--line); } }
+  @media (max-width: 600px) { main { padding: 18px 16px 40px; } .kpis { grid-template-columns: repeat(2, 1fr); } .kpis div { border-left: 0; border-top: 1px solid var(--line); } }
+  .insight { border-left: 3px solid var(--gold); background: var(--panel); padding: 12px 16px; border-radius: 0 8px 8px 0; margin-bottom: 18px; }
+  .insight b { color: var(--gold); }
+  .tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); margin-bottom: 18px; overflow-x: auto; }
+  .tabs button { font: inherit; font-weight: 700; color: var(--muted); background: none; border: 0; border-bottom: 2px solid transparent; padding: 10px 16px; cursor: pointer; white-space: nowrap; }
+  .tabs button.on { color: var(--accent); border-bottom-color: var(--accent); }
+  .box { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 16px; margin-bottom: 16px; min-width: 0; }
+  .box h2 { font-size: 15px; margin: 0 0 2px; }
+  .box p.cap { color: var(--muted); font-size: 12px; margin: 0 0 12px; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 1100px) { .two { grid-template-columns: 1fr; } }
+  .chartwrap { position: relative; height: 300px; }
+  .scroll { overflow-x: auto; }
   table { border-collapse: collapse; width: 100%; font-size: 13px; }
-  th { background: #f9fafb; font-size: 11px; text-transform: uppercase; color: var(--muted); text-align: left; padding: 10px 12px; }
-  td { padding: 10px 12px; border-top: 1px solid var(--line); }
-  td.mono { font-family: 'JetBrains Mono', monospace; }
-  .pos { color: #059669; font-weight: 600; } .neg { color: var(--red); font-weight: 600; }
-  .predict-box { background: linear-gradient(135deg, var(--brand2), #1e1b4b); color: #fff; border-radius: 14px; padding: 24px; text-align: center; margin-top: 16px; }
-  .predict-box .v { font-size: 34px; font-weight: 800; color: #34d399; margin: 8px 0; }
-  .predict-box small { opacity: .8; }
+  th, td { padding: 7px 10px; text-align: right; white-space: nowrap; }
+  th { color: var(--muted); font-weight: 500; font-size: 12px; border-bottom: 1px solid var(--line); }
+  td { border-bottom: 1px solid rgba(36, 48, 74, .6); font-family: var(--mono); }
+  th:first-child, td:first-child { text-align: left; font-family: inherit; }
+  table.heat td.c { cursor: pointer; text-align: center; color: #fff; border: 2px solid var(--panel); font-size: 12px; }
+  table.heat td.c.sel { outline: 2px solid var(--gold); outline-offset: -3px; }
+  table.heat td.c.best::after { content: ' ★'; color: var(--gold); }
+  table.member td { text-align: center; }
+  .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); }
+  .dot.off { background: none; border: 1px solid var(--line); }
+  .sig { color: var(--accent); } .ns { color: var(--bad); }
+  .eq { font: 14px/1.9 var(--mono); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px; overflow-x: auto; white-space: nowrap; }
+  .eq .v { color: var(--accent); }
+  .predict { display: grid; grid-template-columns: 1fr 320px; gap: 16px; }
+  @media (max-width: 1100px) { .predict { grid-template-columns: 1fr; } }
   .field { margin-bottom: 14px; }
-  .field .h { display: flex; justify-content: space-between; font-weight: 600; font-size: 13px; margin-bottom: 6px; }
-  .field .h span { color: var(--brand); font-family: 'JetBrains Mono', monospace; }
-  input[type=range] { width: 100%; accent-color: var(--brand); margin-top: 6px; }
-  .err { color: var(--red); font-weight: 600; }
-  footer { color: var(--muted); font-size: 12px; border-top: 1px solid var(--line); padding-top: 16px; }
-  footer a { color: var(--brand); }
-  canvas { max-height: 300px; }
+  .field label { display: flex; justify-content: space-between; font-weight: 700; margin-bottom: 4px; }
+  .field label span { font: 12px var(--mono); color: var(--muted); font-weight: 400; }
+  .answer { text-align: center; border: 1px solid var(--accent2); border-radius: 8px; padding: 22px 16px; background: radial-gradient(circle at top, rgba(45, 212, 191, .12), transparent 70%); }
+  .answer big { display: block; font: 600 34px var(--mono); color: var(--accent); margin: 6px 0 12px; }
+  .bars div { display: grid; grid-template-columns: 1fr auto; font-size: 12px; margin-top: 6px; text-align: left; }
+  .bars i { grid-column: 1 / 3; height: 4px; border-radius: 2px; margin-top: 2px; }
+  footer { color: var(--muted); font-size: 12px; margin-top: 28px; border-top: 1px solid var(--line); padding-top: 14px; }
+  footer a { color: var(--accent); }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <header class="top">
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" stroke-width="2.5"><path d="M3 3v18h18M7 15l4-4 3 3 6-7"/></svg>
-    <h1 id="title">Multiple Linear Regression Explorer</h1><span class="badge">CRISP-DM</span>
-  </header>
-
-  <section class="hero">
-    <h2>Feature Selection &amp; Parsimony Analysis</h2>
-    <p id="heroText">Loading…</p>
-    <div class="pills" id="heroPills"></div>
-  </section>
-
-  <section class="card">
-    <div class="label">0. 選擇問題與資料集 Problem &amp; Dataset</div>
-    <div class="grid gData">
-      <div><select id="problem">
-        <option value="startup">50 Startups (Profit)</option>
-        <option value="boston">Boston Housing (medv)</option>
-        <option value="custom">自訂 Custom CSV URL</option>
-      </select></div>
-      <div><input type="text" id="url" placeholder="https://.../data.csv"></div>
-      <div><select id="target" title="Target (y)"></select></div>
-      <div><button class="primary" id="load">載入 Load</button></div>
+<div class="app">
+  <aside>
+    <div class="brand">
+      <svg width="34" height="34" viewBox="0 0 24 24"><circle cx="6" cy="17" r="2" fill="#2dd4bf"/><circle cx="11" cy="12" r="2" fill="#2dd4bf"/><circle cx="17" cy="8" r="2" fill="#2dd4bf"/><path d="M3 20L21 4" stroke="#fbbf24" stroke-width="2"/></svg>
+      <div><b>迴歸實驗室</b><small>DIC2 · Multiple LR</small></div>
     </div>
-    <p class="sub" id="msg" style="margin:10px 0 0"></p>
 
-    <div class="label">1. Select Feature Selection Algorithm</div>
-    <div class="row" id="methods"></div>
-    <div class="label" id="kLabel">2. Number of Features</div>
-    <div class="row" id="ks"></div>
-  </section>
+    <div class="step"><i>1</i>選擇問題</div>
+    <div class="stack">
+      <select id="problem">
+        <option value="startup">50 Startups：預測公司利潤</option>
+        <option value="boston">Boston Housing：預測房價</option>
+        <option value="custom">自訂資料集（貼上 CSV 網址）</option>
+      </select>
+      <input type="text" id="url" placeholder="https://.../data.csv">
+      <select id="target" title="目標變數 y"></select>
+      <button class="go" id="load">載入並分析</button>
+    </div>
+    <div class="note" id="msg"></div>
 
-  <div class="grid g5" id="stats"></div>
+    <div class="step"><i>2</i>特徵選擇方法</div>
+    <div id="methods"></div>
 
-  <section class="card bar">
-    <div class="row" style="align-items:center" id="active"></div>
-    <span class="tag" id="razor"></span>
-  </section>
+    <div class="step"><i>3</i>特徵數量 k</div>
+    <div class="kbox"><span id="kHint" class="note"></span><big id="kVal">–</big></div>
+    <input type="range" id="kRange" min="1" max="5" step="1">
+    <div class="ticks"><span>1</span><span id="kMax">5</span></div>
+    <button class="link" id="kBest">跳到最佳 k</button>
+  </aside>
 
-  <div class="grid g2">
-    <section class="card"><h3>RMSE by Number of Features</h3><p class="sub">Test set, lower is better. <span style="color:#10b981">●</span> 最佳 k　<span style="color:#f59e0b">◯</span> 目前選擇的 k</p><canvas id="rmseChart"></canvas></section>
-    <section class="card"><h3>R-squared by Number of Features</h3><p class="sub">Test set, higher is better. <span style="color:#10b981">●</span> 最佳 k　<span style="color:#f59e0b">◯</span> 目前選擇的 k</p><canvas id="r2Chart"></canvas></section>
-  </div>
+  <main>
+    <div class="head">
+      <div><div class="note" id="dsInfo"></div><h1 id="title">多元線性迴歸分析</h1></div>
+      <span class="engine" id="engine"></span>
+    </div>
 
-  <section class="card" id="compareCard" hidden>
-    <h3>Method Comparison</h3><p class="sub">Each method's sweet spot (minimum test RMSE).</p>
-    <div class="tbl"><table id="compareTbl"></table></div>
-  </section>
+    <div class="kpis" id="kpis"></div>
+    <div class="insight" id="insight"></div>
 
-  <section class="card eq">
-    <div class="label">Fitted OLS Regression Equation</div>
-    <code id="equation"></code>
-  </section>
+    <nav class="tabs" id="tabs">
+      <button data-tab="select" class="on">特徵選擇</button>
+      <button data-tab="model">模型係數</button>
+      <button data-tab="diag">殘差診斷</button>
+      <button data-tab="predict">即時預測</button>
+    </nav>
 
-  <div class="grid g2">
-    <section class="card">
-      <h3>Model Coefficients &amp; Statistical Tests</h3>
-      <p class="sub">Estimates, standard errors, t-statistics, p-values, 95% CI and VIF (training set).</p>
-      <div class="tbl"><table id="coefTbl"></table></div>
-    </section>
-    <section class="card">
-      <h3>Live Predictor</h3>
-      <p class="sub">Adjust inputs to predict with the active model in real time.</p>
-      <div id="inputs"></div>
-      <div class="predict-box">
-        <small>PREDICTED <span id="predName"></span></small>
-        <div class="v" id="predVal"></div>
-        <small id="predDetail"></small>
+    <section data-pane="select">
+      <div class="box">
+        <h2>方法 × 特徵數 測試集 RMSE 熱力圖</h2>
+        <p class="cap">顏色越綠誤差越低。★ 為該方法的最低點，點任一格可直接切換方法與 k。</p>
+        <div class="scroll"><table class="heat" id="heat"></table></div>
+      </div>
+      <div class="two">
+        <div class="box">
+          <h2>誤差曲線</h2>
+          <p class="cap">目前方法在不同 k 下的 RMSE（實線）與 R²（虛線），金色圈為目前選擇。</p>
+          <div class="chartwrap"><canvas id="curve"></canvas></div>
+        </div>
+        <div class="box">
+          <h2>特徵進場順序</h2>
+          <p class="cap">目前方法在每個 k 選入了哪些特徵。</p>
+          <div class="scroll"><table class="member" id="member"></table></div>
+        </div>
       </div>
     </section>
-  </div>
 
-  <section class="card">
-    <h3>Test Set Residuals &amp; Outliers Diagnostic</h3>
-    <p class="sub">Top absolute residuals on the out-of-sample test set. "High" = |residual| &gt; 1.2 × RMSE.</p>
-    <div class="tbl"><table id="residTbl"></table></div>
-  </section>
+    <section data-pane="model" hidden>
+      <div class="box">
+        <h2>迴歸方程式</h2>
+        <p class="cap">以訓練集 OLS 估計。</p>
+        <div class="eq" id="equation"></div>
+      </div>
+      <div class="two">
+        <div class="box">
+          <h2>標準化係數</h2>
+          <p class="cap">β × SD(x) / SD(y)：可直接比較各特徵影響力。實心 = p &lt; 0.05。</p>
+          <div class="chartwrap"><canvas id="coefChart"></canvas></div>
+        </div>
+        <div class="box">
+          <h2>係數檢定</h2>
+          <p class="cap">t 檢定、95% 信賴區間與 VIF（&gt; 5 表示共線性偏高）。</p>
+          <div class="scroll"><table id="coefTbl"></table></div>
+        </div>
+      </div>
+    </section>
 
-  <footer>
-    <b>DIC2 — Multiple Linear Regression (CRISP-DM)</b><br>
-    Pure HTML/CSS/JavaScript + Chart.js. All models are fitted in the browser.
-    Datasets: <a href="https://github.com/Avik-Jain/100-Days-Of-ML-Code">50 Startups (Avik Jain)</a>,
-    <a href="https://github.com/selva86/datasets">Boston Housing (selva86)</a>.
-  </footer>
+    <section data-pane="diag" hidden>
+      <div class="two">
+        <div class="box">
+          <h2>實際值 vs 預測值</h2>
+          <p class="cap">測試集；越貼近對角線越準。</p>
+          <div class="chartwrap"><canvas id="avp"></canvas></div>
+        </div>
+        <div class="box">
+          <h2>殘差圖</h2>
+          <p class="cap">殘差應隨機分布在 0 附近，沒有明顯形狀。</p>
+          <div class="chartwrap"><canvas id="resid"></canvas></div>
+        </div>
+      </div>
+      <div class="box">
+        <h2>誤差最大的測試樣本</h2>
+        <p class="cap">|殘差| &gt; 1.2 × RMSE 標記為離群。</p>
+        <div class="scroll"><table id="residTbl"></table></div>
+      </div>
+    </section>
+
+    <section data-pane="predict" hidden>
+      <div class="predict">
+        <div class="box"><h2>輸入特徵</h2><p class="cap">預設為訓練集平均值，拖曳或輸入數值。</p><div id="inputs"></div></div>
+        <div class="answer">
+          <div class="note" id="predName"></div>
+          <big id="predVal"></big>
+          <div class="bars" id="predParts"></div>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      物聯網應用與資料分析 DIC2 · 計算：Flask + scikit-learn + statsmodels（後端），連不到後端時改用瀏覽器內 JavaScript。
+      資料：<a href="https://github.com/Avik-Jain/100-Days-Of-ML-Code">50 Startups</a>、<a href="https://github.com/selva86/datasets">Boston Housing</a>。
+    </footer>
+  </main>
 </div>
 
 <script>
-// ---------- presets ----------
 const PRESETS = {
   startup: { name: '50 Startups', url: 'https://raw.githubusercontent.com/Avik-Jain/100-Days-Of-ML-Code/master/datasets/50_Startups.csv',
-             target: 'Profit', money: true, item: 'Startup',
+             target: 'Profit', money: true, item: '公司',
              // ponytail: hardcoded = sklearn train_test_split(test_size=0.2, random_state=0); only valid for this exact CSV
              testIdx: [28, 11, 10, 41, 2, 27, 38, 31, 22, 4] },
   boston:  { name: 'Boston Housing', url: 'https://raw.githubusercontent.com/selva86/datasets/master/BostonHousing.csv',
-             target: 'medv', money: false, item: 'House' },
-  custom:  { name: 'Custom Dataset', url: '', target: null, money: false, item: 'Row' },
+             target: 'medv', money: false, item: '房屋' },
+  custom:  { name: '自訂資料集', url: '', target: null, money: false, item: '樣本' },
 };
 const METHODS = [
-  { id: 'lasso', name: 'Lasso', tag: 'L1 Ranking', icon: '▼' },
-  { id: 'forward', name: 'Forward SFS', tag: 'Greedy', icon: '↗' },
-  { id: 'rfe', name: 'RFE', tag: 'Backward', icon: '✂' },
-  { id: 'enet', name: 'ElasticNet', tag: 'L1+L2', icon: '⁘' },
-  { id: 'exhaustive', name: 'Exhaustive Search', tag: 'Best Subset', icon: '⌕' },
+  { id: 'lasso', name: 'Lasso', zh: 'L1 正則化路徑排序' },
+  { id: 'forward', name: 'Forward SFS', zh: '向前逐步選擇' },
+  { id: 'rfe', name: 'RFE', zh: '遞迴特徵消除' },
+  { id: 'enet', name: 'ElasticNet', zh: 'L1 + L2 正則化路徑' },
+  { id: 'exhaustive', name: 'Exhaustive', zh: '窮舉最佳子集' },
 ];
-const COLORS = ['#4f46e5', '#10b981', '#f59e0b', '#ec4899', '#0ea5e9'];
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 const sum = a => a.reduce((s, v) => s + v, 0);
+let P, D, feats, Xtr, ytr, Xte, yte, teIdx, G, c, results, state = { method: 'lasso', k: null, tab: 'select' }, charts = {};
 
-let P, D, feats, Xtr, ytr, Xte, yte, teIdx, G, c, results, state = { method: 'lasso', k: null }, charts = {};
-
-// ---------- csv ----------
-// ponytail: naive CSV split — no commas inside quoted fields; swap in PapaParse if a dataset needs it
-function parseCSV(text) {
-  const lines = text.trim().split(/\r?\n/).filter(l => l.trim());
-  const clean = s => s.trim().replace(/^"|"$/g, '');
-  const header = lines[0].split(',').map(clean);
-  const rows = lines.slice(1).map(l => l.split(',').map(clean)).filter(r => r.length === header.length);
-  const numeric = header.map((_, j) => rows.every(r => r[j] !== '' && !isNaN(+r[j])));
-  return { header, rows, numeric };
-}
-
-// ---------- linear algebra & stats ----------
-function inv(M) {
-  const n = M.length, A = M.map((r, i) => [...r, ...r.map((_, j) => +(i === j))]);
-  for (let col = 0; col < n; col++) {
-    let m = col;
-    for (let r = col + 1; r < n; r++) if (Math.abs(A[r][col]) > Math.abs(A[m][col])) m = r;
-    if (Math.abs(A[m][col]) < 1e-9 * Math.max(1, Math.abs(M[col][col]))) return null; // singular / collinear
-    [A[col], A[m]] = [A[m], A[col]];
-    const p = A[col][col];
-    for (let k = 0; k < 2 * n; k++) A[col][k] /= p;
-    for (let r = 0; r < n; r++) if (r !== col && A[r][col]) {
-      const f = A[r][col];
-      for (let k = 0; k < 2 * n; k++) A[r][k] -= f * A[col][k];
-    }
-  }
-  return A.map(r => r.slice(n));
-}
-function gram(X, y) {
-  const p = X[0].length, G = Array.from({ length: p }, () => Array(p).fill(0)), c = Array(p).fill(0);
-  X.forEach((r, i) => { for (let a = 0; a < p; a++) { c[a] += r[a] * y[i]; for (let b = a; b < p; b++) G[a][b] += r[a] * r[b]; } });
-  for (let a = 0; a < p; a++) for (let b = 0; b < a; b++) G[a][b] = G[b][a];
-  return { G, c };
-}
-function solveSub(G, c, S) {
-  const iM = inv(S.map(a => S.map(b => G[a][b])));
-  return iM && { iM, b: iM.map(row => sum(row.map((v, j) => v * c[S[j]]))) };
-}
-function lgamma(x) {
-  const k = [76.18009172947146, -86.50532032941677, 24.01409824083091, -1.231739572450155, 0.1208650973866179e-2, -0.5395239384953e-5];
-  let y = x, t = x + 5.5, s = 1.000000000190015;
-  t -= (x + 0.5) * Math.log(t);
-  for (const v of k) s += v / ++y;
-  return -t + Math.log(2.5066282746310005 * s / x);
-}
-function betacf(a, b, x) {
-  const T = 1e-300, fix = v => Math.abs(v) < T ? T : v;
-  let c = 1, d = 1 / fix(1 - (a + b) * x / (a + 1)), h = d;
-  for (let m = 1; m <= 300; m++) {
-    const m2 = 2 * m;
-    let aa = m * (b - m) * x / ((a - 1 + m2) * (a + m2));
-    d = 1 / fix(1 + aa * d); c = fix(1 + aa / c); h *= d * c;
-    aa = -(a + m) * (a + b + m) * x / ((a + m2) * (a + 1 + m2));
-    d = 1 / fix(1 + aa * d); c = fix(1 + aa / c);
-    const del = d * c; h *= del;
-    if (Math.abs(del - 1) < 3e-14) break;
-  }
-  return h;
-}
-function ibeta(a, b, x) {
-  if (x <= 0) return 0; if (x >= 1) return 1;
-  const bt = Math.exp(lgamma(a + b) - lgamma(a) - lgamma(b) + a * Math.log(x) + b * Math.log(1 - x));
-  return x < (a + 1) / (a + b + 2) ? bt * betacf(a, b, x) / a : 1 - bt * betacf(b, a, 1 - x) / b;
-}
-const tPval = (t, df) => ibeta(df / 2, 0.5, df / (df + t * t));            // two-sided
-const fPval = (F, d1, d2) => ibeta(d2 / 2, d1 / 2, d2 / (d2 + d1 * F));
-function tCrit(df) { let lo = 0, hi = 100; for (let i = 0; i < 80; i++) { const m = (lo + hi) / 2; tPval(m, df) > 0.05 ? lo = m : hi = m; } return lo; }
-
-// ---------- feature selection ----------
-function standardize(X, y) { // X without intercept column
-  const p = X[0].length, n = X.length;
-  const mu = [...Array(p).keys()].map(j => sum(X.map(r => r[j])) / n);
-  const sd = mu.map((m, j) => Math.sqrt(sum(X.map(r => (r[j] - m) ** 2)) / n) || 1);
-  const my = sum(y) / n, sy = Math.sqrt(sum(y.map(v => (v - my) ** 2)) / n) || 1;
-  return { Z: X.map(r => r.map((v, j) => (v - mu[j]) / sd[j])), yz: y.map(v => (v - my) / sy) };
-}
-// Lasso (alpha=1) / ElasticNet (alpha=.5) via coordinate descent; rank = order of entry along the λ path
-function pathOrder(Z, yz, alpha) {
-  const n = Z.length, p = Z[0].length, b = Array(p).fill(0), r = [...yz];
-  const lmax = Math.max(...[...Array(p).keys()].map(j => Math.abs(sum(Z.map((row, i) => row[j] * yz[i]))) / n)) / alpha;
-  const enter = Array(p).fill(Infinity), mag = Array(p).fill(0);
-  for (let s = 0; s < 100; s++) {
-    const lam = lmax * Math.pow(1e-4, s / 99);
-    for (let it = 0; it < 100; it++) {
-      let maxd = 0;
-      for (let j = 0; j < p; j++) {
-        const rho = sum(Z.map((row, i) => row[j] * r[i])) / n + b[j];
-        const nb = Math.sign(rho) * Math.max(Math.abs(rho) - lam * alpha, 0) / (1 + lam * (1 - alpha));
-        const d = nb - b[j];
-        if (d) { Z.forEach((row, i) => r[i] -= d * row[j]); b[j] = nb; maxd = Math.max(maxd, Math.abs(d)); }
-      }
-      if (maxd < 1e-7) break;
-    }
-    b.forEach((v, j) => { if (v && enter[j] === Infinity) { enter[j] = s; mag[j] = Math.abs(v); } });
-  }
-  return [...Array(p).keys()].sort((i, j) => enter[i] - enter[j] || mag[j] - mag[i]);
-}
-function rfeOrder(Z, yz) {
-  const { G: Gz, c: cz } = gram(Z, yz);
-  Gz.forEach((r, i) => r[i] += 1e-9); // tiny ridge so collinear columns still rank
-  let S = [...Array(Z[0].length).keys()]; const out = [];
-  while (S.length) {
-    const b = solveSub(Gz, cz, S).b, i = b.reduce((m, v, j) => Math.abs(v) < Math.abs(b[m]) ? j : m, 0);
-    out.unshift(S.splice(i, 1)[0]);
-  }
-  return out;
-}
-const sseOf = F => { const S = [0, ...F.map(j => j + 1)], s = solveSub(G, c, S); return s ? sum(ytr.map(v => v * v)) - sum(s.b.map((v, i) => v * c[S[i]])) : Infinity; };
-function forwardOrder(p) {
-  const out = [], left = [...Array(p).keys()];
-  while (left.length) {
-    const i = left.reduce((m, j, ii) => sseOf([...out, j]) < sseOf([...out, left[m]]) ? ii : m, 0);
-    out.push(left.splice(i, 1)[0]);
-  }
-  return out;
-}
-function exhaustiveSubsets(p) {
-  if (p > 15) return null; // ponytail: 2^p blowup; falls back to forward SFS above 15 features
-  const best = Array(p + 1).fill(null).map(() => ({ sse: Infinity, F: null }));
-  for (let m = 1; m < 1 << p; m++) {
-    const F = [...Array(p).keys()].filter(j => m >> j & 1), e = sseOf(F);
-    if (e < best[F.length].sse) best[F.length] = { sse: e, F };
-  }
-  return best.slice(1).map(b => b.F);
-}
-
-// ---------- model evaluation ----------
-function evaluate(F) {
-  const S = [0, ...F.map(j => j + 1)], sol = solveSub(G, c, S);
-  if (!sol) return null;
-  const { b, iM } = sol, pred = X => X.map(r => sum(S.map((a, i) => r[a] * b[i])));
-  const yhTr = pred(Xtr), yhTe = pred(Xte), n = ytr.length, k = F.length, df = n - k - 1;
-  const mTr = sum(ytr) / n, sse = sum(ytr.map((v, i) => (v - yhTr[i]) ** 2)), sst = sum(ytr.map(v => (v - mTr) ** 2));
-  const sigma2 = sse / df, fstat = ((sst - sse) / k) / sigma2;
-  const nt = yte.length, mTe = sum(yte) / nt, res = yte.map((v, i) => v - yhTe[i]);
-  const r2 = 1 - sum(res.map(v => v * v)) / sum(yte.map(v => (v - mTe) ** 2));
-  const se = b.map((_, i) => Math.sqrt(sigma2 * iM[i][i])), t = b.map((v, i) => v / se[i]), tc = tCrit(df);
-  return {
-    F, b, se, t, p: t.map(v => tPval(Math.abs(v), df)), lo: b.map((v, i) => v - tc * se[i]), hi: b.map((v, i) => v + tc * se[i]),
-    vif: vif(F), yhTe, df, fstat, fp: fPval(fstat, k, df),
-    rmse: Math.sqrt(sum(res.map(v => v * v)) / nt), r2, mae: sum(res.map(Math.abs)) / nt,
-    adj: nt - k - 1 > 0 ? 1 - (1 - r2) * (nt - 1) / (nt - k - 1) : NaN,
-  };
-}
-function vif(F) {
-  if (F.length === 1) return [1];
-  const { Z } = standardize(Xtr.map(r => F.map(j => r[j + 1])), ytr), n = Z.length;
-  const R = F.map((_, a) => F.map((_, b) => sum(Z.map(r => r[a] * r[b])) / n)), iR = inv(R);
-  return iR ? iR.map((r, i) => r[i]) : F.map(() => Infinity);
-}
-
+Chart.defaults.color = '#8b9ab3';
+Chart.defaults.borderColor = '#24304a';
+Chart.defaults.font.family = "'Noto Sans TC', system-ui, sans-serif";
+</script>
+<script src="model.js"></script>
+<script>
 // ---------- pipeline ----------
 async function load() {
   const key = $('problem').value, url = $('url').value.trim();
   P = { ...PRESETS[key], url };
-  $('msg').className = 'sub'; $('msg').textContent = '載入中 Loading…';
+  $('msg').className = 'note'; $('msg').textContent = '讀取資料中…';
   try {
     const res = await fetch(url);
     if (!res.ok) throw new Error('HTTP ' + res.status);
     D = parseCSV(await res.text());
     if (D.rows.length < 10) throw new Error('至少需要 10 筆資料');
     const numIdx = D.header.map((_, j) => j).filter(j => D.numeric[j]);
-    if (!numIdx.length) throw new Error('找不到數值欄位當 target');
+    if (!numIdx.length) throw new Error('找不到數值欄位可當目標變數');
     const want = D.header.indexOf(P.target);
     const t = numIdx.includes(want) ? want : numIdx.at(-1);
-    $('target').innerHTML = numIdx.map(j => `<option value="${j}" ${j === t ? 'selected' : ''}>y = ${esc(D.header[j])}</option>`).join('');
-    run();
-  } catch (e) { $('msg').className = 'err'; $('msg').textContent = '載入失敗: ' + e.message; }
+    $('target').innerHTML = numIdx.map(j => `<option value="${j}" ${j === t ? 'selected' : ''}>目標 y：${esc(D.header[j])}</option>`).join('');
+    await run();
+  } catch (e) { $('msg').className = 'note err'; $('msg').textContent = '載入失敗：' + e.message; }
 }
 
 async function run() {
@@ -370,7 +282,7 @@ async function run() {
     // first level = reference (avoids dummy trap)
     levels.slice(1).forEach(l => feats.push({ name: `${h}_${l}`, src: j, level: l, f: r => +(r[j] === l) }));
   });
-  if (!feats.length) { $('msg').className = 'err'; $('msg').textContent = '沒有可用的特徵欄位'; return; }
+  if (!feats.length) { $('msg').className = 'note err'; $('msg').textContent = '沒有可用的特徵欄位'; return; }
 
   const n = D.rows.length, idx = [...Array(n).keys()];
   let test;
@@ -387,18 +299,17 @@ async function run() {
   ({ G, c } = gram(Xtr, ytr));
 
   const p = feats.length;
-  $('msg').className = 'sub'; $('msg').textContent = '模型計算中 Fitting models…';
+  $('msg').textContent = '模型計算中…';
   const lists = await analyzeWithPython(t) || analyzeInBrowser();
   results = {};
   for (const m of METHODS) {
     const list = lists[m.id];
     results[m.id] = { list, best: list.reduce((a, b) => b.rmse < a.rmse ? b : a) };
   }
-  $('title').textContent = `${P.name === 'Custom Dataset' ? 'Custom' : P.name} Multiple Linear Regression Explorer`;
-  $('msg').innerHTML = `✓ ${n} rows · ${p} candidate features · train ${tr.length} / test ${te.length} · Engine: ` +
-    (lists.python ? '<span class="tag">🐍 Python (Flask + scikit-learn + statsmodels)</span>' : '<span class="tag indigo">JavaScript (in-browser)</span>') +
-    (skipped.length ? ` · 略過文字欄位: ${esc(skipped.join(', '))}` : '') +
-    (p > 15 ? ' · Exhaustive 改用 Forward (特徵 > 15)' : '');
+  $('engine').textContent = lists.python ? '🐍 Python · Flask + scikit-learn + statsmodels' : 'JS · 瀏覽器內計算';
+  $('engine').className = 'engine' + (lists.python ? ' py' : '');
+  $('dsInfo').textContent = `${P.name} · ${n} 筆 · ${p} 個候選特徵 · 訓練 ${tr.length} / 測試 ${te.length}`;
+  $('msg').textContent = (skipped.length ? `已略過文字欄位：${skipped.join(', ')}。` : '') + (p > 15 ? '特徵 > 15，Exhaustive 改用 Forward。' : '');
   state.k = null;
   render();
 }
@@ -431,162 +342,178 @@ function analyzeInBrowser() {
 }
 
 // ---------- rendering ----------
-const fmt = (v, d = 2) => !isFinite(v) ? '—' : P.money
+const fmt = (v, d = 2) => !Number.isFinite(v) ? '—' : P.money
   ? (v < 0 ? '-$' : '$') + Math.abs(v).toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d })
   : v.toLocaleString('en-US', { maximumFractionDigits: 4 });
-const fmtP = p => p < 1e-4 ? '< 0.0001' : p.toFixed(4);
-
-function current() {
-  if (state.method === 'all') {
-    return Object.values(results).map(r => r.best).reduce((a, b) => b.rmse < a.rmse ? b : a);
-  }
-  const R = results[state.method];
-  return R.list.find(r => r.k === state.k) || R.best;
+const short = v => P.money ? Math.round(v).toLocaleString('en-US') : v.toFixed(Math.abs(v) >= 100 ? 1 : 3);
+const fmtP = p => p < 1e-4 ? '<0.0001' : p.toFixed(4);
+const best = list => list.reduce((a, b) => b.rmse < a.rmse ? b : a);
+function chart(id, config) {
+  charts[id]?.destroy();
+  charts[id] = new Chart($(id), { ...config, options: { maintainAspectRatio: false, animation: false, ...config.options } });
 }
 
 function render() {
-  const yName = D.header[+$('target').value];
-  // method buttons
-  $('methods').innerHTML = METHODS.map(m =>
-    `<button class="chip ${state.method === m.id ? 'on' : ''}" data-m="${m.id}">${m.icon} ${m.name} <small>${m.tag}</small></button>`).join('') +
-    `<button class="chip ${state.method === 'all' ? 'on' : ''}" data-m="all">◎ Compare All 5 Methods</button>`;
-  $('methods').querySelectorAll('button').forEach(b => b.onclick = () => { state.method = b.dataset.m; state.k = null; render(); });
+  const yName = D.header[+$('target').value], p = feats.length, R = results[state.method];
+  if (state.k == null) state.k = R.best.k;
+  const M = R.list.find(r => r.k === state.k) || R.best, k = M.F.length;
+  const all = METHODS.map(m => ({ m, b: results[m.id].best })), top = best(all.map(a => a.b));
+  const fname = j => esc(feats[j].name);
 
-  // k buttons
-  const all = state.method === 'all', R = all ? null : results[state.method];
-  if (!all && state.k == null) state.k = R.best.k;
-  $('kLabel').hidden = $('ks').hidden = all;
-  if (!all) {
-    const p = feats.length;
-    $('kLabel').textContent = `2. Number of Features (k = 1 to ${p})`;
-    $('ks').innerHTML = R.list.map(r => {
-      const best = r === R.best, full = r.k === p;
-      const hint = best ? '★ Optimal Sweet Spot <small>Min RMSE</small>' : full ? '⚠ Full Model' : r.k === 1 ? `<small>${esc(feats[r.F[0]].name)}</small>` : '';
-      return `<button class="chip ${best ? 'best' : ''} ${full && !best ? 'full' : ''} ${state.k === r.k ? 'on' : ''}" data-k="${r.k}">k = ${r.k} ${hint}</button>`;
-    }).join('');
-    $('ks').querySelectorAll('button').forEach(b => b.onclick = () => { state.k = +b.dataset.k; render(); });
-  }
+  // sidebar
+  $('title').innerHTML = `${esc(P.name)}：預測 <span>${esc(yName)}</span>`;
+  $('methods').innerHTML = all.map(({ m, b }) =>
+    `<label class="opt ${state.method === m.id ? 'on' : ''} ${b === top || b.rmse === top.rmse ? 'top' : ''}">
+      <input type="radio" name="method" value="${m.id}" ${state.method === m.id ? 'checked' : ''}>
+      <span>${m.name}</span><em>${m.zh}</em><b>k=${b.k}<br>${short(b.rmse)}</b></label>`).join('');
+  $('methods').querySelectorAll('input').forEach(el => el.onchange = () => { state.method = el.value; state.k = null; render(); });
+  $('kRange').max = p; $('kRange').value = k; $('kMax').textContent = p; $('kVal').textContent = k;
+  $('kHint').textContent = M === R.best ? '★ 此方法誤差最低' : `最佳為 k=${R.best.k}`;
 
-  const M = current(), k = M.F.length;
-  const globalBest = Object.values(results).map(r => r.best).reduce((a, b) => b.rmse < a.rmse ? b : a);
-  const full = results.lasso.list.find(r => r.k === feats.length);
+  // KPIs
+  $('kpis').innerHTML = [
+    ['測試集 RMSE', fmt(M.rmse)], ['測試集 R²', M.r2.toFixed(4)], ['調整後 R²', Number.isFinite(M.adj) ? M.adj.toFixed(4) : '—'],
+    ['MAE', fmt(M.mae)], ['F 統計量', `${M.fstat.toFixed(1)}`], ['F 檢定 p 值', fmtP(M.fp)],
+  ].map(([a, b]) => `<div><small>${a}</small><strong>${b}</strong></div>`).join('');
 
-  // hero
-  $('heroText').innerHTML = `Compare 5 feature selection algorithms (<b>Lasso, Forward SFS, RFE, ElasticNet, Exhaustive Search</b>) on the
-    <b>${esc(P.name)}</b> dataset to predict <b>${esc(yName)}</b>. Explore the bias–variance trade-off across feature counts k = 1…${feats.length},
-    pinpointing the <b>${globalBest.k}-feature sweet spot</b>${full && full.rmse > globalBest.rmse ? ` and the <b>${feats.length}-feature overfitting cliff</b>` : ''}.`;
-  $('heroPills').innerHTML = [`▤ ${esc(P.name)}`, '⚡ 5 Selection Methods', `★ Global Sweet Spot: k=${globalBest.k} (${fmt(globalBest.rmse)} RMSE)`,
-    full ? `⚠ Full Model: k=${feats.length} (${fmt(full.rmse)} RMSE)` : ''].filter(Boolean).map(s => `<span class="pill">${s}</span>`).join('');
+  // insight
+  const full = R.list.find(r => r.k === p);
+  const fullTxt = full && full !== M ? `；全部 ${p} 個特徵都放進去時 RMSE 為 ${fmt(full.rmse)}（${full.rmse > M.rmse ? '較差，多餘特徵帶來 overfitting' : '較好'}）` : '';
+  $('insight').innerHTML = `目前以 <b>${METHODS.find(m => m.id === state.method).name}</b> 選出 <b>${k}</b> 個特徵（${M.F.map(fname).join('、')}），
+    測試集 RMSE = <b>${fmt(M.rmse)}</b>、R² = <b>${M.r2.toFixed(4)}</b>${fullTxt}。
+    五種方法中誤差最低的是 k = <b>${top.k}</b>（${top.F.map(fname).join('、')}），RMSE = <b>${fmt(top.rmse)}</b>。`;
 
-  // stats
-  const isBest = M.rmse <= globalBest.rmse + 1e-9;
-  $('stats').innerHTML = [
-    ['Test RMSE', fmt(M.rmse), 'Lower is better', isBest ? '<span class="tag">Optimal Sweet Spot</span>' : ''],
-    ['R² Score', M.r2.toFixed(4), `Explains ${(M.r2 * 100).toFixed(2)}% of ${esc(yName)} variance (test)`, `<span class="tag indigo">${(M.r2 * 100).toFixed(1)}% fit</span>`],
-    ['Adjusted R²', Number.isFinite(M.adj) ? M.adj.toFixed(4) : '—', 'Penalizes redundant parameters', ''],
-    ['Mean Absolute Error', fmt(M.mae), 'Average prediction error (test)', ''],
-    ['F-Statistic', M.fstat.toFixed(1), M.fp < 0.05 ? 'Model is statistically significant' : 'Not significant at α = 0.05', `<span class="tag ${M.fp < 0.05 ? '' : 'amber'}">p ${M.fp < 1e-4 ? '< 0.0001' : '= ' + M.fp.toFixed(4)}</span>`],
-  ].map(([kk, v, d, t]) => `<div class="stat"><div class="k">${kk} ${t}</div><div class="v">${v}</div><div class="d">${d}</div></div>`).join('');
+  // heatmap
+  const vals = all.flatMap(({ m }) => results[m.id].list.map(r => r.rmse)), lo = Math.min(...vals), hi = Math.max(...vals);
+  $('heat').innerHTML = `<tr><th>方法 \\ k</th>${[...Array(p).keys()].map(i => `<th style="text-align:center">${i + 1}</th>`).join('')}</tr>` +
+    all.map(({ m, b }) => `<tr><td>${m.name}</td>${results[m.id].list.map(r => {
+      const pct = Math.round(100 * (hi > lo ? (r.rmse - lo) / (hi - lo) : 0));
+      return `<td class="c ${r === b ? 'best' : ''} ${m.id === state.method && r.k === k ? 'sel' : ''}" data-m="${m.id}" data-k="${r.k}"
+        style="background:color-mix(in oklab, #9f1239 ${pct}%, #0f766e)" title="${m.name} k=${r.k}: ${fmt(r.rmse)}">${short(r.rmse)}</td>`;
+    }).join('')}</tr>`).join('');
+  $('heat').querySelectorAll('td.c').forEach(td => td.onclick = () => { state.method = td.dataset.m; state.k = +td.dataset.k; render(); });
 
-  // active predictors
-  $('active').innerHTML = `<b>✓ Active Predictors (${k}):</b> ` + M.F.map(j => `<span class="tag indigo">${esc(feats[j].name)}</span>`).join(' ');
-  $('razor').textContent = isBest
-    ? `★ Occam's Razor: ${k} features give the minimum test RMSE (${fmt(M.rmse)}) and R² ${M.r2.toFixed(4)}`
-    : `Best overall: k=${globalBest.k} (${fmt(globalBest.rmse)} RMSE)`;
-  $('razor').className = 'tag' + (isBest ? '' : ' amber');
+  // membership grid
+  $('member').innerHTML = `<tr><th>特徵 \\ k</th>${R.list.map(r => `<th style="text-align:center">${r.k}</th>`).join('')}</tr>` +
+    feats.map((f, j) => `<tr><td>${esc(f.name)}</td>${R.list.map(r =>
+      `<td><span class="dot ${r.F.includes(j) ? '' : 'off'}" ${r.k === k && r.F.includes(j) ? 'style="background:var(--gold)"' : ''}></span></td>`).join('')}</tr>`).join('');
 
-  // charts
-  const ds = (all ? METHODS : METHODS.filter(m => m.id === state.method)).map((m, i) => {
-    const list = results[m.id].list, ci = METHODS.indexOf(m);
-    return metric => ({
-      label: m.name, data: list.map(r => ({ x: r.k, y: r[metric] })), borderColor: COLORS[ci], backgroundColor: COLORS[ci], tension: 0,
-      // green dot = optimal k; big amber ring = currently selected k
-      pointRadius: list.map(r => !all && r.k === state.k ? 10 : r === results[m.id].best ? 7 : 4),
-      pointBackgroundColor: list.map(r => r === results[m.id].best ? '#10b981' : !all && r.k === state.k ? '#fff' : COLORS[ci]),
-      pointBorderColor: list.map(r => !all && r.k === state.k ? '#f59e0b' : r === results[m.id].best ? '#10b981' : COLORS[ci]),
-      pointBorderWidth: list.map(r => !all && r.k === state.k ? 4 : 1),
-    });
+  // error curve
+  const sel = r => r.k === k;
+  chart('curve', {
+    type: 'line',
+    data: { datasets: [
+      { label: 'RMSE', data: R.list.map(r => ({ x: r.k, y: r.rmse })), yAxisID: 'y', borderColor: '#2dd4bf', backgroundColor: '#2dd4bf',
+        pointRadius: R.list.map(r => sel(r) ? 9 : 3), pointBorderColor: R.list.map(r => sel(r) ? '#fbbf24' : '#2dd4bf'),
+        pointBorderWidth: R.list.map(r => sel(r) ? 3 : 1), pointBackgroundColor: R.list.map(r => sel(r) ? '#0b1120' : '#2dd4bf') },
+      { label: 'R²', data: R.list.map(r => ({ x: r.k, y: r.r2 })), yAxisID: 'y2', borderColor: '#a78bfa', borderDash: [6, 4], pointRadius: 2 },
+    ] },
+    options: { scales: {
+      x: { type: 'linear', ticks: { stepSize: 1 }, title: { display: true, text: '特徵數 k' } },
+      y: { title: { display: true, text: 'RMSE' } },
+      y2: { position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'R²' } },
+    } },
   });
-  for (const [id, metric] of [['rmseChart', 'rmse'], ['r2Chart', 'r2']]) {
-    charts[id]?.destroy();
-    charts[id] = new Chart($(id), {
-      type: 'line', data: { datasets: ds.map(f => f(metric)) },
-      options: {
-        parsing: true, animation: false, plugins: { legend: { display: all } },
-        scales: { x: { type: 'linear', ticks: { stepSize: 1 }, title: { display: true, text: 'Number of Features (k)' } },
-                  y: { title: { display: true, text: metric === 'rmse' ? 'RMSE' : 'R-squared' } } },
-      },
-    });
-  }
-
-  // compare table
-  $('compareCard').hidden = !all;
-  if (all) $('compareTbl').innerHTML = '<tr><th>Method</th><th>Best k</th><th>Selected Features</th><th>Test RMSE</th><th>R²</th></tr>' +
-    METHODS.map(m => { const b = results[m.id].best; return `<tr><td><b>${m.name}</b></td><td>${b.k}</td><td>${b.F.map(j => esc(feats[j].name)).join(', ')}</td><td class="mono">${fmt(b.rmse)}</td><td class="mono">${b.r2.toFixed(4)}</td></tr>`; }).join('');
 
   // equation
   const nf = v => Math.abs(v).toLocaleString('en-US', { maximumFractionDigits: 4 });
-  $('equation').innerHTML = `${esc(yName)} = <b>${M.b[0] < 0 ? '-' : ''}${nf(M.b[0])}</b>` +
-    M.F.map((j, i) => ` ${M.b[i + 1] < 0 ? '−' : '+'} ${nf(M.b[i + 1])} × <b>(${esc(feats[j].name)})</b>`).join('');
+  $('equation').innerHTML = `ŷ(${esc(yName)}) = ${M.b[0] < 0 ? '−' : ''}${nf(M.b[0])}` +
+    M.F.map((j, i) => `<br>&nbsp;&nbsp;${M.b[i + 1] < 0 ? '−' : '+'} ${nf(M.b[i + 1])} · <span class="v">${fname(j)}</span>`).join('');
+
+  // standardized coefficients
+  const sdy = Math.sqrt(sum(ytr.map(v => (v - sum(ytr) / ytr.length) ** 2)) / ytr.length);
+  const std = M.F.map((j, i) => {
+    const col = Xtr.map(r => r[j + 1]), m = sum(col) / col.length;
+    return M.b[i + 1] * Math.sqrt(sum(col.map(v => (v - m) ** 2)) / col.length) / sdy;
+  });
+  chart('coefChart', {
+    type: 'bar',
+    data: { labels: M.F.map(j => feats[j].name), datasets: [{ data: std,
+      backgroundColor: std.map((v, i) => M.p[i + 1] < 0.05 ? (v >= 0 ? '#2dd4bf' : '#fb7185') : 'transparent'),
+      borderColor: std.map(v => v >= 0 ? '#2dd4bf' : '#fb7185'), borderWidth: 2 }] },
+    options: { indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { title: { display: true, text: '標準化係數' } } } },
+  });
 
   // coefficient table
-  $('coefTbl').innerHTML = '<tr><th>Predictor</th><th>Estimate (β)</th><th>Std. Error</th><th>t-Stat</th><th>p-Value</th><th>95% Conf. Int</th><th>VIF</th></tr>' +
-    M.b.map((b, i) => {
-      const p = M.p[i], vf = i ? M.vif[i - 1] : null;
-      return `<tr><td><b>${i ? esc(feats[M.F[i - 1]].name) : 'Intercept (β₀)'}</b></td><td class="mono"><b>${b.toFixed(4)}</b></td>
-        <td class="mono">${M.se[i].toFixed(4)}</td><td class="mono">${M.t[i].toFixed(3)}</td>
-        <td><span class="tag ${p < 0.05 ? '' : 'amber'}">${fmtP(p)}${p < 0.05 ? ' ✓' : ' (n.s.)'}</span></td>
-        <td class="mono">[${M.lo[i].toFixed(2)}, ${M.hi[i].toFixed(2)}]</td>
-        <td>${vf == null ? '—' : `<span class="tag ${vf < 5 ? '' : 'amber'}">${vf.toFixed(2)} ${vf < 5 ? '(Safe)' : '(High)'}</span>`}</td></tr>`;
-    }).join('');
+  $('coefTbl').innerHTML = '<tr><th>變數</th><th>β</th><th>SE</th><th>t</th><th>p</th><th>95% CI</th><th>VIF</th></tr>' +
+    M.b.map((b, i) => `<tr><td>${i ? fname(M.F[i - 1]) : '截距'}</td><td>${b.toFixed(4)}</td><td>${M.se[i].toFixed(4)}</td>
+      <td>${M.t[i].toFixed(2)}</td><td class="${M.p[i] < 0.05 ? 'sig' : 'ns'}">${fmtP(M.p[i])}</td>
+      <td>${M.lo[i].toFixed(3)} ~ ${M.hi[i].toFixed(3)}</td>
+      <td class="${i && M.vif[i - 1] >= 5 ? 'ns' : ''}">${i ? M.vif[i - 1].toFixed(2) : ''}</td></tr>`).join('');
 
-  // live predictor
+  // diagnostics
+  const pts = yte.map((v, i) => ({ a: v, p: M.yhTe[i], r: v - M.yhTe[i], id: teIdx[i] }));
+  const mn = Math.min(...pts.flatMap(q => [q.a, q.p])), mx = Math.max(...pts.flatMap(q => [q.a, q.p]));
+  const outlier = q => Math.abs(q.r) > 1.2 * M.rmse;
+  chart('avp', {
+    type: 'scatter',
+    data: { datasets: [
+      { label: '測試樣本', data: pts.map(q => ({ x: q.a, y: q.p })), backgroundColor: pts.map(q => outlier(q) ? '#fb7185' : '#2dd4bf') },
+      { label: 'y = ŷ', type: 'line', data: [{ x: mn, y: mn }, { x: mx, y: mx }], borderColor: '#fbbf24', borderDash: [5, 5], pointRadius: 0 },
+    ] },
+    options: { scales: { x: { title: { display: true, text: '實際值' } }, y: { title: { display: true, text: '預測值' } } } },
+  });
+  chart('resid', {
+    type: 'scatter',
+    data: { datasets: [
+      { label: '殘差', data: pts.map(q => ({ x: q.p, y: q.r })), backgroundColor: pts.map(q => outlier(q) ? '#fb7185' : '#a78bfa') },
+      { label: '0', type: 'line', data: [{ x: Math.min(...pts.map(q => q.p)), y: 0 }, { x: Math.max(...pts.map(q => q.p)), y: 0 }], borderColor: '#fbbf24', pointRadius: 0 },
+    ] },
+    options: { plugins: { legend: { display: false } }, scales: { x: { title: { display: true, text: '預測值' } }, y: { title: { display: true, text: '殘差 (實際 − 預測)' } } } },
+  });
+  $('residTbl').innerHTML = '<tr><th>樣本</th><th>實際</th><th>預測</th><th>殘差</th><th>誤差 %</th><th>判定</th></tr>' +
+    [...pts].sort((a, b) => Math.abs(b.r) - Math.abs(a.r)).slice(0, 8).map(q => `<tr><td>${P.item} #${q.id}</td><td>${fmt(q.a)}</td>
+      <td>${fmt(q.p)}</td><td class="${q.r >= 0 ? 'sig' : 'ns'}">${q.r >= 0 ? '+' : ''}${fmt(q.r)}</td>
+      <td>${q.a ? (Math.abs(q.r / q.a) * 100).toFixed(1) + '%' : '—'}</td><td class="${outlier(q) ? 'ns' : ''}">${outlier(q) ? '離群' : '正常'}</td></tr>`).join('');
+
+  renderPredictor(M, yName);
+}
+
+function renderPredictor(M, yName) {
   const srcs = [...new Set(M.F.map(j => feats[j].src))];
   const trainRows = D.rows.filter((_, i) => !teIdx.includes(i));
   $('inputs').innerHTML = srcs.map(j => {
     const h = esc(D.header[j]);
     if (!D.numeric[j]) {
       const lv = [...new Set(D.rows.map(r => r[j]))].sort();
-      return `<div class="field"><div class="h">${h}</div><select data-src="${j}">${lv.map(l => `<option>${esc(l)}</option>`).join('')}</select></div>`;
+      return `<div class="field"><label>${h}<span>類別（${esc(lv[0])} 為基準）</span></label>
+        <select data-src="${j}">${lv.map(l => `<option>${esc(l)}</option>`).join('')}</select></div>`;
     }
-    const vals = D.rows.map(r => +r[j]), lo = Math.min(...vals), hi = Math.max(...vals), mean = sum(trainRows.map(r => +r[j])) / trainRows.length;
-    const step = (hi - lo) / 200 || 1, v = +mean.toPrecision(4);
-    return `<div class="field"><div class="h">${h}<span id="lbl${j}">${v}</span></div>
+    const vals = D.rows.map(r => +r[j]), lo = Math.min(...vals), hi = Math.max(...vals);
+    const v = +(sum(trainRows.map(r => +r[j])) / trainRows.length).toPrecision(4);
+    return `<div class="field"><label>${h}<span>範圍 ${lo} ~ ${hi}</span></label>
       <input type="number" data-src="${j}" value="${v}" step="any">
-      <input type="range" data-range="${j}" min="${lo}" max="${hi}" step="${step}" value="${v}"></div>`;
+      <input type="range" data-range="${j}" min="${lo}" max="${hi}" step="${(hi - lo) / 200 || 1}" value="${v}"></div>`;
   }).join('');
   const update = () => {
     const row = [];
     $('inputs').querySelectorAll('[data-src]').forEach(el => row[+el.dataset.src] = el.value);
     const parts = M.F.map((j, i) => [feats[j].name, M.b[i + 1] * feats[j].f(row)]);
-    const y = M.b[0] + sum(parts.map(p => p[1]));
-    $('predName').textContent = esc(yName).toUpperCase();
-    $('predVal').textContent = fmt(y);
-    $('predDetail').innerHTML = 'Active predictors: ' + M.F.map(j => esc(feats[j].name)).join(', ') + '<br>' +
-      parts.map(([n, v]) => `${esc(n)}: ${v >= 0 ? '+' : ''}${fmt(v, 0)}`).join(' · ');
+    const scale = Math.max(...parts.map(q => Math.abs(q[1])), 1e-9);
+    $('predName').textContent = `預測 ${yName}`;
+    $('predVal').textContent = fmt(M.b[0] + sum(parts.map(q => q[1])));
+    $('predParts').innerHTML = `<div><span>截距</span><span>${fmt(M.b[0], 0)}</span></div>` + parts.map(([n, v]) =>
+      `<div><span>${esc(n)}</span><span>${v >= 0 ? '+' : ''}${fmt(v, 0)}</span>
+        <i style="width:${Math.abs(v) / scale * 100}%;background:${v >= 0 ? '#2dd4bf' : '#fb7185'}"></i></div>`).join('');
   };
   $('inputs').querySelectorAll('input[type=number]').forEach(el => el.oninput = () => {
-    const r = $('inputs').querySelector(`[data-range="${el.dataset.src}"]`); r.value = el.value; $('lbl' + el.dataset.src).textContent = el.value; update();
+    $('inputs').querySelector(`[data-range="${el.dataset.src}"]`).value = el.value; update();
   });
   $('inputs').querySelectorAll('input[type=range]').forEach(el => el.oninput = () => {
-    const nIn = $('inputs').querySelector(`input[type=number][data-src="${el.dataset.range}"]`); nIn.value = el.value; $('lbl' + el.dataset.range).textContent = el.value; update();
+    $('inputs').querySelector(`input[type=number][data-src="${el.dataset.range}"]`).value = el.value; update();
   });
   $('inputs').querySelectorAll('select').forEach(el => el.onchange = update);
   update();
-
-  // residuals
-  const rows = yte.map((v, i) => ({ id: teIdx[i], a: v, p: M.yhTe[i], r: v - M.yhTe[i] })).sort((a, b) => Math.abs(b.r) - Math.abs(a.r)).slice(0, 10);
-  $('residTbl').innerHTML = '<tr><th>Rank</th><th>Sample ID</th><th>Actual</th><th>Predicted</th><th>Residual</th><th>Abs Error</th><th>% Error</th><th>Status</th></tr>' +
-    rows.map((x, i) => {
-      const high = Math.abs(x.r) > 1.2 * M.rmse;
-      return `<tr><td><b>#${i + 1}</b></td><td>${P.item} #${x.id}</td><td class="mono">${fmt(x.a)}</td><td class="mono">${fmt(x.p)}</td>
-        <td class="${x.r >= 0 ? 'pos' : 'neg'}">${x.r >= 0 ? '+' : ''}${fmt(x.r)}</td><td class="mono">${fmt(Math.abs(x.r))}</td>
-        <td>${x.a ? (Math.abs(x.r / x.a) * 100).toFixed(2) + '%' : '—'}</td>
-        <td><span class="tag ${high ? 'amber' : ''}">${high ? 'High Residual' : 'In Range'}</span></td></tr>`;
-    }).join('');
 }
 
 // ---------- wiring ----------
+$('tabs').querySelectorAll('button').forEach(b => b.onclick = () => {
+  state.tab = b.dataset.tab;
+  $('tabs').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+  document.querySelectorAll('[data-pane]').forEach(s => s.hidden = s.dataset.pane !== state.tab);
+});
+$('kRange').oninput = () => { state.k = +$('kRange').value; render(); };
+$('kBest').onclick = () => { state.k = results[state.method].best.k; render(); };
 $('problem').onchange = () => { $('url').value = PRESETS[$('problem').value].url; if ($('url').value) load(); else $('url').focus(); };
 $('load').onclick = load;
 $('url').onkeydown = e => { if (e.key === 'Enter') load(); };

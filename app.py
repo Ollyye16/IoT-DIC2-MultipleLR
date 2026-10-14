@@ -33,6 +33,11 @@ def index():
     return send_from_directory(ROOT, "index.html")
 
 
+@app.get("/model.js")
+def model_js():
+    return send_from_directory(ROOT, "model.js")
+
+
 # ---------- data ----------
 def load_features(url, target):
     """Same encoding rules as the JS frontend: numeric columns as-is, text columns
