@@ -118,8 +118,8 @@
   </section>
 
   <div class="grid g2">
-    <section class="card"><h3>RMSE by Number of Features</h3><p class="sub">Test set, lower is better.</p><canvas id="rmseChart"></canvas></section>
-    <section class="card"><h3>R-squared by Number of Features</h3><p class="sub">Test set, higher is better.</p><canvas id="r2Chart"></canvas></section>
+    <section class="card"><h3>RMSE by Number of Features</h3><p class="sub">Test set, lower is better. <span style="color:#10b981">●</span> 最佳 k　<span style="color:#f59e0b">◯</span> 目前選擇的 k</p><canvas id="rmseChart"></canvas></section>
+    <section class="card"><h3>R-squared by Number of Features</h3><p class="sub">Test set, higher is better. <span style="color:#10b981">●</span> 最佳 k　<span style="color:#f59e0b">◯</span> 目前選擇的 k</p><canvas id="r2Chart"></canvas></section>
   </div>
 
   <section class="card" id="compareCard" hidden>
@@ -500,8 +500,11 @@ function render() {
     const list = results[m.id].list, ci = METHODS.indexOf(m);
     return metric => ({
       label: m.name, data: list.map(r => ({ x: r.k, y: r[metric] })), borderColor: COLORS[ci], backgroundColor: COLORS[ci], tension: 0,
-      pointRadius: list.map(r => r === results[m.id].best ? 7 : 4),
-      pointBackgroundColor: list.map(r => r === results[m.id].best ? '#10b981' : COLORS[ci]),
+      // green dot = optimal k; big amber ring = currently selected k
+      pointRadius: list.map(r => !all && r.k === state.k ? 10 : r === results[m.id].best ? 7 : 4),
+      pointBackgroundColor: list.map(r => r === results[m.id].best ? '#10b981' : !all && r.k === state.k ? '#fff' : COLORS[ci]),
+      pointBorderColor: list.map(r => !all && r.k === state.k ? '#f59e0b' : r === results[m.id].best ? '#10b981' : COLORS[ci]),
+      pointBorderWidth: list.map(r => !all && r.k === state.k ? 4 : 1),
     });
   });
   for (const [id, metric] of [['rmseChart', 'rmse'], ['r2Chart', 'r2']]) {
